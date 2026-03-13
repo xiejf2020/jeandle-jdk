@@ -326,6 +326,10 @@ class JeandleAbstractInterpreter : public StackObj {
                                    llvm::CallingConv::ID calling_conv,
                                    llvm::ArrayRef<llvm::OperandBundleDef> deopt_bundle = {});
 
+  llvm::OperandBundleDef create_current_deopt_bundle() {
+    return llvm::OperandBundleDef("deopt", _jvm->deopt_args(_ir_builder, _bytecodes.cur_bci()));
+  }
+
   void add_safepoint_poll();
 
   llvm::SmallVector<JeandleBasicBlock*>& bci2block() { return _block_builder->bci2block(); }
