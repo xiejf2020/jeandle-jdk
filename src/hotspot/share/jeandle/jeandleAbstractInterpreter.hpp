@@ -315,14 +315,16 @@ class JeandleAbstractInterpreter : public StackObj {
   llvm::CallInst*   call_java_op(llvm::StringRef java_op, 
                                  llvm::ArrayRef<llvm::Value*> args,
                                  llvm::ArrayRef<llvm::OperandBundleDef> deopt_bundle = {});
-  llvm::InvokeInst* call_java_op_ex(llvm::StringRef java_op, llvm::ArrayRef<llvm::Value*> args);
+  llvm::InvokeInst* call_java_op_ex(llvm::StringRef java_op, llvm::ArrayRef<llvm::Value*> args,
+                                    llvm::ArrayRef<llvm::OperandBundleDef> deopt_bundle = {});
   llvm::CallInst*   create_call(llvm::FunctionCallee callee,
                                 llvm::ArrayRef<llvm::Value*> arg,
                                 llvm::CallingConv::ID calling_conv,
                                 llvm::ArrayRef<llvm::OperandBundleDef> deopt_bundle = {});
   llvm::InvokeInst* create_call_ex(llvm::FunctionCallee callee,
                                    llvm::ArrayRef<llvm::Value*> arg,
-                                   llvm::CallingConv::ID calling_conv);
+                                   llvm::CallingConv::ID calling_conv,
+                                   llvm::ArrayRef<llvm::OperandBundleDef> deopt_bundle = {});
 
   void add_safepoint_poll();
 

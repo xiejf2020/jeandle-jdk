@@ -165,7 +165,8 @@ DEF_JAVA_OP(new_instance, 1, llvm::PointerType::get(context, llvm::jeandle::Addr
   current_thread->setCallingConv(llvm::CallingConv::Hotspot_JIT);
 
   // slow path allocation, TODO: implement fast path allocation
-  llvm::CallInst* call_inst = ir_builder.CreateCall(JeandleRuntimeRoutine::new_instance_callee(template_module), {klass, current_thread});
+  llvm::OperandBundleDef deopt_bundle("deopt", llvm::SmallVector<llvm::Value*>{});
+  llvm::CallInst* call_inst = ir_builder.CreateCall(JeandleRuntimeRoutine::new_instance_callee(template_module), {klass, current_thread}, {deopt_bundle});
   call_inst->setCallingConv(llvm::CallingConv::Hotspot_JIT);
 
   ir_builder.CreateRet(call_inst);
