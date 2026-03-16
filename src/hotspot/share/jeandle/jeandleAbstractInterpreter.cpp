@@ -36,6 +36,7 @@
 #include "ci/ciMethodBlocks.hpp"
 #include "ci/ciSymbols.hpp"
 #include "classfile/javaClasses.hpp"
+#include "interpreter/interpreter.hpp"
 #include "logging/log.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "runtime/stubRoutines.hpp"
@@ -254,8 +255,27 @@ llvm::SmallVector<llvm::Value*> JeandleVMState::deopt_args(llvm::IRBuilder<>& bu
     args.push_back(obj.value());
     args.push_back(lock);
   }
+  // update interpreter frame size for deopt
+  JeandleCompilation::current()->compiled_code()->update_interpreter_frame_size_in_bytes(interpreter_frame_size_in_bytes());
   return args;
 }
+
+int JeandleVMState::interpreter_frame_size_in_bytes() {
+  // they will be used if we can inline methods
+  int callee_locals = 0;
+  int callee_parameters = 0;
+  int frame_size = BytesPerWord * Interpreter::size_activation(max_stack(),
+                                                               stack_size() + callee_parameters,
+                                                               max_stack() - stack_size(),    // extra_size
+                                                               locks_size(),
+                                                               callee_parameters,
+                                                               callee_locals,
+                                                               true // is_top_frame
+                                                              );
+  callee_locals = (int)max_locals();
+  return frame_size + Deoptimization::last_frame_adjust(0, callee_locals) * BytesPerWord;
+}
+
 
 JeandleBasicBlock::JeandleBasicBlock(int block_id,
                                      int start_bci,
