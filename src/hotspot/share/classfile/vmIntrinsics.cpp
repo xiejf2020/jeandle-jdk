@@ -402,6 +402,21 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_loadFence:
   case vmIntrinsics::_storeFence:
   case vmIntrinsics::_fullFence:
+  case vmIntrinsics::_compareAndSetShort:
+  case vmIntrinsics::_weakCompareAndSetByte:
+  case vmIntrinsics::_weakCompareAndSetBytePlain:
+  case vmIntrinsics::_weakCompareAndSetByteAcquire:
+  case vmIntrinsics::_weakCompareAndSetByteRelease:
+  case vmIntrinsics::_weakCompareAndSetShort:
+  case vmIntrinsics::_weakCompareAndSetShortPlain:
+  case vmIntrinsics::_weakCompareAndSetShortAcquire:
+  case vmIntrinsics::_weakCompareAndSetShortRelease:
+  case vmIntrinsics::_compareAndExchangeByte:
+  case vmIntrinsics::_compareAndExchangeByteAcquire:
+  case vmIntrinsics::_compareAndExchangeByteRelease:
+  case vmIntrinsics::_compareAndExchangeShort:
+  case vmIntrinsics::_compareAndExchangeShortAcquire:
+  case vmIntrinsics::_compareAndExchangeShortRelease:
   case vmIntrinsics::_compareAndSetLong:
   case vmIntrinsics::_weakCompareAndSetLong:
   case vmIntrinsics::_weakCompareAndSetLongPlain:
