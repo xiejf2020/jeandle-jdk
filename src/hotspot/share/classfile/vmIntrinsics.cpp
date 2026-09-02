@@ -229,8 +229,12 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
     case vmIntrinsics::_compressStringB:
     case vmIntrinsics::_inflateStringC:
     case vmIntrinsics::_inflateStringB:
+    case vmIntrinsics::_getAndAddByte:
+    case vmIntrinsics::_getAndAddShort:
     case vmIntrinsics::_getAndAddInt:
     case vmIntrinsics::_getAndAddLong:
+    case vmIntrinsics::_getAndSetByte:
+    case vmIntrinsics::_getAndSetShort:
     case vmIntrinsics::_getAndSetInt:
     case vmIntrinsics::_getAndSetLong:
     case vmIntrinsics::_getAndSetReference:
@@ -394,8 +398,12 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_putLongOpaque:
   case vmIntrinsics::_putFloatOpaque:
   case vmIntrinsics::_putDoubleOpaque:
+  case vmIntrinsics::_getAndAddByte:
+  case vmIntrinsics::_getAndAddShort:
   case vmIntrinsics::_getAndAddInt:
   case vmIntrinsics::_getAndAddLong:
+  case vmIntrinsics::_getAndSetByte:
+  case vmIntrinsics::_getAndSetShort:
   case vmIntrinsics::_getAndSetInt:
   case vmIntrinsics::_getAndSetLong:
   case vmIntrinsics::_getAndSetReference:
