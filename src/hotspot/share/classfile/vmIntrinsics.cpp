@@ -453,6 +453,8 @@ bool vmIntrinsics::disabled_by_jvm_flags(vmIntrinsics::ID id) {
   case vmIntrinsics::_compareAndExchangeReferenceAcquire:
   case vmIntrinsics::_compareAndExchangeReferenceRelease:
   case vmIntrinsics::_allocateInstance:
+  case vmIntrinsics::_park:
+  case vmIntrinsics::_unpark:
     if (!InlineUnsafeOps) return true;
     break;
   case vmIntrinsics::_getShortUnaligned:

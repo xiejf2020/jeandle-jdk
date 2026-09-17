@@ -356,6 +356,10 @@ bool JeandleIntrinsicLowering::is_supported(vmIntrinsics::ID id) {
     // Unsafe.allocateInstance
     case vmIntrinsics::_allocateInstance:
 
+    // Unsafe park/unpark runtime entries.
+    case vmIntrinsics::_park:
+    case vmIntrinsics::_unpark:
+
     // Object monitor notifications.
     case vmIntrinsics::_notify:
     case vmIntrinsics::_notifyAll:
@@ -401,6 +405,16 @@ bool JeandleIntrinsicLowering::is_supported(vmIntrinsics::ID id) {
     case vmIntrinsics::_putLong:
     case vmIntrinsics::_putFloat:
     case vmIntrinsics::_putDouble:
+
+    // Unsafe unaligned primitive get/put.
+    case vmIntrinsics::_getShortUnaligned:
+    case vmIntrinsics::_getCharUnaligned:
+    case vmIntrinsics::_getIntUnaligned:
+    case vmIntrinsics::_getLongUnaligned:
+    case vmIntrinsics::_putShortUnaligned:
+    case vmIntrinsics::_putCharUnaligned:
+    case vmIntrinsics::_putIntUnaligned:
+    case vmIntrinsics::_putLongUnaligned:
 
     // Unsafe volatile get/put.
     case vmIntrinsics::_getReferenceVolatile:
@@ -767,6 +781,10 @@ bool JeandleIntrinsicLowering::lower(vmIntrinsics::ID id, const ciMethod* target
       return lower_java_op("jeandle.current_thread_obj",
                            {CTRL_NONE, MEM_READ});
 
+    case vmIntrinsics::_park:
+    case vmIntrinsics::_unpark:
+      return lower_unsafe_park_unpark(id);
+
     // Reference*
     case vmIntrinsics::_Reference_get:
       return lower_java_op("jeandle.reference_get",
@@ -851,6 +869,24 @@ bool JeandleIntrinsicLowering::lower(vmIntrinsics::ID id, const ciMethod* target
       return lower_unsafe_access(true, T_FLOAT, UnsafeAccessKind::Relaxed);
     case vmIntrinsics::_putDouble:
       return lower_unsafe_access(true, T_DOUBLE, UnsafeAccessKind::Relaxed);
+
+    // Unsafe unaligned get/put.
+    case vmIntrinsics::_getShortUnaligned:
+      return lower_unsafe_access(false, T_SHORT, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_getCharUnaligned:
+      return lower_unsafe_access(false, T_CHAR, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_getIntUnaligned:
+      return lower_unsafe_access(false, T_INT, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_getLongUnaligned:
+      return lower_unsafe_access(false, T_LONG, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_putShortUnaligned:
+      return lower_unsafe_access(true, T_SHORT, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_putCharUnaligned:
+      return lower_unsafe_access(true, T_CHAR, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_putIntUnaligned:
+      return lower_unsafe_access(true, T_INT, UnsafeAccessKind::Relaxed);
+    case vmIntrinsics::_putLongUnaligned:
+      return lower_unsafe_access(true, T_LONG, UnsafeAccessKind::Relaxed);
 
     // Unsafe volatile get/put. Primitive accesses use seq_cst system-scope
     // atomics; reference accesses use collector-aware JavaOps.
@@ -1469,6 +1505,59 @@ bool JeandleIntrinsicLowering::lower_java_op(const char* java_op_name,
 // =============================================================================
 // Per-intrinsic handlers
 // =============================================================================
+
+// ---- lower_unsafe_park_unpark ----
+bool JeandleIntrinsicLowering::lower_unsafe_park_unpark(vmIntrinsics::ID id) {
+  const char* routine_name = id == vmIntrinsics::_park
+      ? "unsafe_park" : "unsafe_unpark";
+  if (JeandleRuntimeRoutine::find_routine_entry(routine_name) == nullptr) {
+    return false;
+  }
+
+  llvm::Module& module = _interp->_module;
+  llvm::IRBuilder<>& builder = _interp->_ir_builder;
+  llvm::Function* current_thread_fn = module.getFunction("jeandle.current_thread");
+  assert(current_thread_fn != nullptr, "jeandle.current_thread must exist");
+  llvm::CallInst* current_thread = builder.CreateCall(current_thread_fn);
+  current_thread->setCallingConv(llvm::CallingConv::Hotspot_JIT);
+
+  // Both helpers enter the VM. park can block, and unpark protects its target
+  // with a FastThreadsListHandle; neither is a GC leaf. Both may safepoint
+  // inside the VM, and their effects cannot be replayed, so the deopt bundle
+  // captured by emit_callsite must describe the post-invoke state: consume
+  // the arguments before the callsite is created, exactly as ordinary Java
+  // invoke lowering does.
+  static constexpr CallSiteAttributeMetadata attrs = {
+      CTRL_NONE, MEM_READ | MEM_WRITE | MEM_NEEDS_GC_STATE};
+
+  if (id == vmIntrinsics::_park) {
+    // Logical values, top first: time (long), isAbsolute, Unsafe receiver.
+    // Physical raw slots: long placeholder, long value, int, oop.
+    // Save the arguments as SSA values first; popping them below only shapes
+    // the deopt bundle and does not affect the call arguments.
+    llvm::Value* time = _interp->_jvm->peek_value(0).value();
+    llvm::Value* is_absolute = _interp->_jvm->peek_value(1).value();
+    _interp->_jvm->lpop();
+    _interp->_jvm->ipop();
+    _interp->_jvm->apop();
+    emit_callsite(JeandleRuntimeRoutine::unsafe_park_callee(module),
+                  llvm::CallingConv::Hotspot_JIT,
+                  {is_absolute, time, current_thread}, attrs);
+    return true;
+  }
+
+  assert(id == vmIntrinsics::_unpark, "unexpected intrinsic");
+  // Logical/physical values, top first: target Thread, Unsafe receiver.
+  // Same as park: the saved SSA value feeds the call below, while the pops
+  // make the deopt bundle describe the completed, post-invoke stack.
+  llvm::Value* thread_oop = _interp->_jvm->peek_value(0).value();
+  _interp->_jvm->apop();
+  _interp->_jvm->apop();
+  emit_callsite(JeandleRuntimeRoutine::unsafe_unpark_callee(module),
+                llvm::CallingConv::Hotspot_JIT,
+                {thread_oop, current_thread}, attrs);
+  return true;
+}
 
 bool JeandleIntrinsicLowering::lower_object_notify(vmIntrinsics::ID id) {
   const bool notify_all = id == vmIntrinsics::_notifyAll;
